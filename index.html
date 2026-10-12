@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contactos y Rutas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+  // Configuración del proyecto de Firebase "Contactos y Rutas".
+  // Esta app es pública (cualquiera con el enlace puede leer y
+  // escribir en esta base de datos), así que no es sensible mantenerla
+  // visible aquí — es lo mismo que usan todos los que abren la app.
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyC0qKIcza6lBYZzamh5qLz3ZBp3-8_MzpE",
+    authDomain: "contactos-y-rutas.firebaseapp.com",
+    projectId: "contactos-y-rutas",
+    storageBucket: "contactos-y-rutas.firebasestorage.app",
+    messagingSenderId: "6480935268",
+    appId: "1:6480935268:web:5c78aef103946eb7f2a271"
+  };
+</script>
+<style>
+  :root {
+    --ink: #1B2430;
+    --paper: #F6F3EC;
+    --paper-raised: #FFFFFF;
+    --accent: #A97A50;
+    --accent-dark: #7C5736;
+    --accent-tint: #F1E6D8;
+    --line: #DDD5C4;
+    --muted: #716B5E;
+    --danger: #A8503F;
+    --danger-tint: #F3E2DD;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #EEE8DB;
+      --paper: #15181D;
+      --paper-raised: #1E222A;
+      --accent: #C79463;
+      --accent-dark: #E3B384;
+      --accent-tint: #2C2419;
+      --line: #343B45;
+      --muted: #9B9389;
+      --danger: #D08776;
+      --danger-tint: #322120;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #EEE8DB;
+    --paper: #15181D;
+    --paper-raised: #1E222A;
+    --accent: #C79463;
+    --accent-dark: #E3B384;
+    --accent-tint: #2C2419;
+    --line: #343B45;
+    --muted: #9B9389;
+    --danger: #D08776;
+    --danger-tint: #322120;
+  }
+
+  * { box-sizing: border-box; }
+  html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .app { max-width: 640px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 0 20px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar h1 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 0 0 14px 0;
+    letter-spacing: -0.01em;
+  }
+  .tabs { display: flex; gap: 4px; margin: 0 -4px; }
+  .tab {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tab.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+  .sync-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: -6px 0 10px 0;
+  }
+  .sync-status::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .sync-status.is-synced { color: var(--accent-dark); }
+  .sync-status.is-synced::before { background: #5B9A6F; }
+  .sync-status.is-error { color: var(--danger); }
+  .sync-status.is-error::before { background: var(--danger); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 30;
+    max-width: calc(100% - 40px);
+    text-align: center;
+  }
+  .badge {
+    background: var(--accent);
+    color: var(--paper-raised);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+
+  main { flex: 1; padding: 16px 20px 100px 20px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+  #search {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper-raised);
+    font-size: 0.95rem;
+  }
+  #search::placeholder { color: var(--muted); }
+
+  .btn-primary, .btn-secondary, .btn-ghost {
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    padding: 11px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary {
+    background: var(--accent-tint);
+    color: var(--accent-dark);
+    width: 100%;
+    margin-top: 14px;
+  }
+  .btn-ghost { background: none; border-color: var(--line); color: var(--muted); }
+
+  .contact-list { display: flex; flex-direction: column; gap: 10px; }
+  .contact-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .check { padding-top: 3px; }
+  .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .contact-main { flex: 1; min-width: 0; }
+  .contact-main h3 {
+    font-family: var(--font-serif);
+    font-size: 1.08rem;
+    font-weight: 600;
+    margin: 0 0 3px 0;
+  }
+  .contact-person { margin: 0 0 2px 0; font-size: 0.88rem; color: var(--ink); opacity: 0.85; }
+  .contact-address { margin: 0 0 8px 0; font-size: 0.86rem; color: var(--muted); }
+  .contact-note { margin: 0 0 8px 0; font-size: 0.82rem; color: var(--accent-dark); font-style: italic; }
+  .contact-url { margin: 0 0 8px 0; font-size: 0.82rem; }
+  .contact-url a { color: var(--accent-dark); word-break: break-all; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 0.76rem;
+    font-weight: 600;
+    background: var(--accent-tint);
+    color: var(--accent-dark);
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+  .contact-actions { display: flex; flex-direction: column; gap: 6px; }
+  .icon-btn {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn.delete:hover { color: var(--danger); border-color: var(--danger); }
+  .icon-btn.edit:hover { color: var(--accent-dark); border-color: var(--accent); }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.92rem;
+    padding: 40px 20px;
+    line-height: 1.5;
+  }
+
+  .route-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .route-header h2 {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  #routeStopCount { font-family: var(--font-sans); font-weight: 400; color: var(--muted); font-size: 0.85rem; }
+
+  .route-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .route-item {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .route-item-row { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .stop-note-input {
+    flex-basis: 100%;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    resize: vertical;
+  }
+  .stop-note-input::placeholder { color: var(--muted); }
+
+  .stop-extra {
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+  }
+  .field-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .field-label { font-size: 0.76rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+
+  .stepper { display: flex; align-items: center; gap: 12px; }
+  .stepper-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .stepper-btn:hover { background: var(--accent-tint); }
+  .stepper-value { min-width: 32px; text-align: center; font-weight: 700; font-size: 0.92rem; }
+
+  .seg-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg-btn {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .seg-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .cost-input-wrap {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .cost-prefix { padding: 7px 8px; color: var(--muted); font-size: 0.85rem; font-weight: 600; border-right: 1px solid var(--line); }
+  .cost-input { border: none; background: transparent; padding: 7px 10px; font-size: 0.9rem; width: 96px; color: var(--ink); }
+
+  .maps-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .maps-buttons .btn-secondary { margin-top: 0; }
+
+  .cobro-actions { display: flex; gap: 8px; }
+  .btn-chip {
+    border: 1px solid var(--accent);
+    background: var(--accent-tint);
+    color: var(--accent-dark);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .btn-chip:hover { background: var(--accent); color: #fff; }
+
+  .cobro-block {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper-raised);
+  }
+  .cobro-total-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .cobro-total-label { font-family: var(--font-serif); font-weight: 600; font-size: 1rem; }
+  .cobro-total-value { font-family: var(--font-serif); font-weight: 700; font-size: 1.35rem; color: var(--accent-dark); }
+  .cobro-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .cobro-buttons .btn-secondary { margin-top: 0; }
+  .route-item.sortable-ghost { opacity: 0.4; }
+  .route-item.sortable-chosen { border-color: var(--accent); }
+  .drag-handle {
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: grab;
+    padding: 4px;
+    touch-action: none;
+  }
+  .stop-number {
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .stop-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .stop-info strong { font-family: var(--font-serif); font-size: 0.98rem; font-weight: 600; }
+  .stop-info span { font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .route-item .icon-btn.remove { border: none; font-size: 1.1rem; }
+
+  .share-status {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--accent-dark);
+    font-weight: 600;
+    margin: 6px 0 0 0;
+  }
+
+  .notes-block { margin-top: 24px; }
+  .notes-block label {
+    display: block;
+    font-family: var(--font-serif);
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+  #notes {
+    width: 100%;
+    min-height: 110px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper-raised);
+    font-size: 0.92rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  #notes::placeholder { color: var(--muted); }
+
+  .selection-bar {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 40px);
+    max-width: 600px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: var(--radius);
+    padding: 12px 14px 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 10;
+  }
+  .selection-bar span { font-size: 0.88rem; font-weight: 600; }
+  .selection-bar .btn-primary { background: var(--accent); }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 20;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (min-width: 560px) {
+    .modal-overlay { align-items: center; }
+  }
+  .modal {
+    background: var(--paper-raised);
+    width: 100%;
+    max-width: 480px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 22px 20px calc(20px + env(safe-area-inset-bottom, 0px)) 20px;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  @media (min-width: 560px) {
+    .modal { border-radius: var(--radius); }
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .modal h2 {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    margin: 0;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--muted);
+    padding: 4px 8px;
+  }
+  .modal-close:hover { color: var(--ink); }
+  #contactForm label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  #contactForm input {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions button { flex: 1; }
+
+  .share-modal-textarea {
+    width: 100%;
+    min-height: 220px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    resize: vertical;
+    margin-bottom: 4px;
+  }
+
+  /* .modal-overlay and .selection-bar set display:flex unconditionally
+     above; without this, that rule outranks the browser's own
+     [hidden]{display:none} and the element never actually disappears
+     when JS sets .hidden = true. */
+  .modal-overlay[hidden], .selection-bar[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Contactos &amp; Rutas</h1>
+    <p id="syncStatus" class="sync-status" hidden></p>
+    <nav class="tabs">
+      <button class="tab active" data-tab="contacts">Contactos</button>
+      <button class="tab" data-tab="route">Ruta <span id="routeCount" class="badge" hidden>0</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-contacts" class="view active">
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Buscar funeraria, contacto, dirección o #etiqueta">
+        <button id="btnAdd" class="btn-primary">+ Nuevo</button>
+      </div>
+      <div id="contactList" class="contact-list"></div>
+      <p id="emptyContacts" class="empty" hidden>Aún no hay contactos. Agrega el primero para comenzar.</p>
+    </section>
+
+    <section id="view-route" class="view">
+      <div class="route-header">
+        <h2>Ruta actual <span id="routeStopCount"></span></h2>
+        <button id="btnClearRoute" class="btn-ghost">Vaciar</button>
+      </div>
+      <ul id="routeList" class="route-list"></ul>
+      <p id="emptyRoute" class="empty" hidden>Selecciona contactos en la pestaña Contactos y toca "Generar ruta" para armar tu recorrido.</p>
+      <div id="mapsButtons" class="maps-buttons"></div>
+      <button id="btnShare" class="btn-secondary" hidden>Compartir ruta</button>
+      <button id="btnRoutePdf" class="btn-secondary" hidden>Descargar PDF de la ruta</button>
+      <button id="btnAddressesPdf" class="btn-secondary" hidden>PDF de direcciones y links</button>
+      <button id="btnLinksPdf" class="btn-secondary" hidden>Descargar PDF de links de contactos</button>
+      <p id="shareStatus" class="share-status" hidden></p>
+
+      <div class="cobro-block">
+        <div class="cobro-total-row">
+          <span class="cobro-total-label">Total de la ruta</span>
+          <span class="cobro-total-value" id="routeTotal">$0.00</span>
+        </div>
+        <div class="cobro-total-row">
+          <span class="cobro-total-label">Pendiente de entregar a mi jefe</span>
+          <span class="cobro-total-value" id="reporteTotal">$0.00</span>
+        </div>
+        <div class="cobro-buttons">
+          <button id="btnReporteShare" class="btn-secondary" hidden>Enviar reporte a mi jefe</button>
+          <button id="btnReportePdf" class="btn-secondary" hidden>Descargar PDF de reporte</button>
+        </div>
+      </div>
+
+      <div class="notes-block">
+        <label for="generalNotes">Notas generales de la ruta</label>
+        <textarea id="generalNotes" placeholder="Horarios, instrucciones generales, pendientes..."></textarea>
+      </div>
+    </section>
+  </main>
+
+  <div id="selectionBar" class="selection-bar" hidden>
+    <span id="selCount">0 seleccionados</span>
+    <button id="btnGenerateRoute" class="btn-primary">Generar ruta →</button>
+  </div>
+</div>
+
+<div id="shareModalOverlay" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+    <div class="modal-head">
+      <h2 id="shareModalTitle">Compartir</h2>
+      <button type="button" id="btnCloseShareModal" class="modal-close" aria-label="Cerrar" onclick="document.getElementById('shareModalOverlay').hidden = true;">&times;</button>
+    </div>
+    <textarea id="shareModalText" class="share-modal-textarea" readonly></textarea>
+    <div class="modal-actions">
+      <button type="button" id="shareModalNativeBtn" class="btn-secondary" style="margin-top:0;" hidden>Compartir con otra app…</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="btnCloseShareModal2" class="btn-ghost" onclick="document.getElementById('shareModalOverlay').hidden = true;">Cerrar</button>
+      <button type="button" id="btnShareModalCopy" class="btn-primary">Copiar texto</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<div id="modalOverlay" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle">Nuevo contacto</h2>
+      <button type="button" id="btnCloseModal" class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modalOverlay').hidden = true;">&times;</button>
+    </div>
+    <form id="contactForm">
+      <label>Nombre de la funeraria
+        <input id="f_funeraria">
+      </label>
+      <label>Nombre del contacto
+        <input id="f_contact">
+      </label>
+      <label>Teléfono
+        <input id="f_phone" type="tel" inputmode="tel">
+      </label>
+      <label>Dirección
+        <input id="f_address">
+      </label>
+      <label>URL (página, Facebook, ubicación en Maps, etc.)
+        <input id="f_url" type="url" inputmode="url" placeholder="https://...">
+      </label>
+      <label>Etiquetas (separadas por coma)
+        <input id="f_tags" placeholder="municipal, zona-norte">
+      </label>
+      <label>Nota (se usa por default al agregarlo a una ruta)
+        <input id="f_nota" placeholder="Ej. entregar en recepción, preguntar por...">
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="btnCancel" class="btn-ghost" onclick="document.getElementById('modalOverlay').hidden = true;">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="jsErrorBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#A8503F;color:#fff;font-size:12px;padding:8px 12px;z-index:9999;white-space:pre-wrap;"></div>
+<script>
+  window.addEventListener("error", function (e) {
+    var b = document.getElementById("jsErrorBanner");
+    if (b) {
+      b.style.display = "block";
+      b.textContent = "Error: " + (e.message || "desconocido") + " (línea " + e.lineno + ", col " + e.colno + ")";
+    }
+  });
+</script>
+<script>
+(function () {
+  "use strict";
+
+  var CONTACTS_KEY = "cyr_contacts_v1";
+  var ROUTE_KEY = "cyr_route_v1";
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  function loadContactsLocal() {
+    try {
+      var raw = localStorage.getItem(CONTACTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function saveContactsLocal(list) {
+    try { localStorage.setItem(CONTACTS_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  // Notes used to be one plain string for the whole route. Now each
+  // stop can carry its own note, plus one general note for the trip.
+  // This normalizes either shape (and anything missing) into
+  // { general: string, byContact: { [contactId]: string } }.
+  function normalizeNotes(notes) {
+    if (!notes) return { general: "", byContact: {} };
+    if (typeof notes === "string") return { general: notes, byContact: {} };
+    return { general: notes.general || "", byContact: notes.byContact || {} };
+  }
+
+  // Per-stop order details: quantity, size, cost, finish. Keyed by
+  // contact id, separate from notes so the two can evolve independently.
+  function normalizeDetails(details) {
+    return (details && typeof details === "object") ? details : {};
+  }
+
+  function loadRouteLocal() {
+    try {
+      var raw = localStorage.getItem(ROUTE_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      return {
+        ids: (parsed && parsed.ids) || [],
+        notes: normalizeNotes(parsed && parsed.notes),
+        details: normalizeDetails(parsed && parsed.details)
+      };
+    } catch (e) { return { ids: [], notes: normalizeNotes(null), details: {} }; }
+  }
+  function saveRouteLocal(route) {
+    try { localStorage.setItem(ROUTE_KEY, JSON.stringify(route)); } catch (e) {}
+  }
+
+  var state = {
+    contacts: loadContactsLocal(),
+    route: loadRouteLocal(),
+    selected: new Set(),
+    search: "",
+    editingId: null
+  };
+
+  // ---- Shared storage layer (Firebase Firestore) ----
+  // Everyone who opens this page — on any device, with no login of any
+  // kind — reads and writes the same Firestore database, so changes
+  // sync live for all of them. If Firestore can't be reached (offline,
+  // misconfigured project), the app falls back to this device's own
+  // localStorage so it still works, just without sharing.
+  var usingDb = false;
+  var contactsCol = null;
+  var routeRef = null;
+
+  function setSyncStatus(mode, text) {
+    el.syncStatus.hidden = false;
+    el.syncStatus.className = "sync-status" + (mode === "synced" ? " is-synced" : mode === "error" ? " is-error" : "");
+    el.syncStatus.textContent = text;
+  }
+
+  function showToast(msg) {
+    el.toast.textContent = msg;
+    el.toast.hidden = false;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () { el.toast.hidden = true; }, 3000);
+  }
+
+  function handleDbError(e) {
+    console.error(e);
+    setSyncStatus("error", "Se perdió la conexión con la base compartida");
+  }
+
+  function handleWriteError(e) {
+    console.error(e);
+    if (e && e.code === "permission-denied") {
+      showToast("La base de datos rechazó el cambio (revisa las Reglas en Firebase).");
+    } else {
+      showToast("No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.");
+    }
+  }
+
+  function docToContact(doc) {
+    var data = doc.data() || {};
+    return {
+      id: doc.id,
+      funeraria: data.funeraria || "",
+      contactName: data.contactName || "",
+      phone: data.phone || "",
+      address: data.address || "",
+      tags: data.tags || [],
+      nota: data.nota || "",
+      url: data.url || ""
+    };
+  }
+
+  function initStore() {
+    if (typeof FIREBASE_CONFIG === "undefined" || !FIREBASE_CONFIG.apiKey || typeof firebase === "undefined") {
+      setSyncStatus("local", "Modo local — falta configurar Firebase (los cambios no se comparten)");
+      return;
+    }
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      var db = firebase.firestore();
+      usingDb = true;
+      contactsCol = db.collection("contacts");
+      routeRef = db.collection("route").doc("current");
+      setSyncStatus("synced", "Sincronizado — todos ven los mismos cambios");
+
+      contactsCol.onSnapshot(function (snap) {
+        state.contacts = snap.docs.map(docToContact);
+        state.selected.forEach(function (id) {
+          if (!state.contacts.some(function (c) { return c.id === id; })) state.selected.delete(id);
+        });
+        renderContacts();
+        renderSelectionBar();
+        renderRoute();
+      }, handleDbError);
+
+      routeRef.onSnapshot(function (snap) {
+        var data = snap.exists ? snap.data() : {};
+        state.route = {
+          ids: data.ids || [],
+          notes: normalizeNotes(data.notes),
+          details: normalizeDetails(data.details)
+        };
+        renderRoute();
+      }, handleDbError);
+    } catch (e) {
+      handleDbError(e);
+    }
+  }
+
+  function writeRouteDoc(patch) {
+    var next = Object.assign({}, state.route, patch);
+    state.route = next;
+    if (usingDb && routeRef) {
+      routeRef.set({ ids: next.ids, notes: next.notes, details: next.details }).catch(handleWriteError);
+    } else {
+      saveRouteLocal(next);
+      renderRoute();
+    }
+  }
+
+  function setGeneralNote(text) {
+    writeRouteDoc({ notes: Object.assign({}, state.route.notes, { general: text }) });
+  }
+
+  function setContactNote(contactId, text) {
+    var byContact = Object.assign({}, state.route.notes.byContact);
+    if (text && text.trim()) byContact[contactId] = text;
+    else delete byContact[contactId];
+    writeRouteDoc({ notes: Object.assign({}, state.route.notes, { byContact: byContact }) });
+  }
+
+  // A stop's order details: zero or more items — each with its own
+  // optional cantidad/tamaño/acabado/costo unitario, e.g. "10
+  // personalizados a $80" and, optionally, "50 lisos de 30 cm a $50"
+  // as a second item on the same stop — plus how the client paid.
+  function defaultItem() {
+    return { cantidad: 10, tamano: null, tipo: "", costo: "" };
+  }
+
+  function stopDetailOf(id) {
+    var raw = state.route.details[id] || {};
+    var items = raw.items;
+    if (!items) {
+      // Brand-new stop (details never saved for it yet): start with
+      // one item by default. Migrate the old single
+      // cantidad/tamano/tipo/costo shape if that's what's there instead.
+      items = (raw.cantidad || raw.tamano || raw.tipo || raw.costo)
+        ? [{ cantidad: raw.cantidad || null, tamano: raw.tamano || null, tipo: raw.tipo || "", costo: raw.costo || "" }]
+        : [defaultItem()];
+    } else {
+      items = items.map(function (it) { return Object.assign({ costo: "" }, it); });
+    }
+    return {
+      items: items,
+      formaPago: raw.formaPago || "",
+      montoEfectivo: raw.montoEfectivo || "",
+      montoTransferencia: raw.montoTransferencia || ""
+    };
+  }
+
+  function itemSubtotal(item) {
+    return costNumber(item.costo) * (item.cantidad || 0);
+  }
+  function stopSubtotal(detail) {
+    return detail.items.reduce(function (sum, it) { return sum + itemSubtotal(it); }, 0);
+  }
+
+  function setStopDetail(contactId, patchFields) {
+    var details = Object.assign({}, state.route.details);
+    var current = stopDetailOf(contactId);
+    details[contactId] = Object.assign({}, current, patchFields);
+    writeRouteDoc({ details: details });
+  }
+
+  function setStopItem(contactId, idx, patch) {
+    var items = stopDetailOf(contactId).items.slice();
+    items[idx] = Object.assign({}, items[idx], patch);
+    setStopDetail(contactId, { items: items });
+  }
+
+  function addStopItem(contactId) {
+    var items = stopDetailOf(contactId).items.slice();
+    items.push(defaultItem());
+    setStopDetail(contactId, { items: items });
+  }
+
+  function removeStopItem(contactId, idx) {
+    var items = stopDetailOf(contactId).items.slice();
+    items.splice(idx, 1);
+    setStopDetail(contactId, { items: items });
+  }
+
+  var el = {
+    tabs: document.querySelectorAll(".tab"),
+    viewContacts: document.getElementById("view-contacts"),
+    viewRoute: document.getElementById("view-route"),
+    routeCountBadge: document.getElementById("routeCount"),
+    syncStatus: document.getElementById("syncStatus"),
+    toast: document.getElementById("toast"),
+    search: document.getElementById("search"),
+    btnAdd: document.getElementById("btnAdd"),
+    contactList: document.getElementById("contactList"),
+    emptyContacts: document.getElementById("emptyContacts"),
+    selectionBar: document.getElementById("selectionBar"),
+    selCount: document.getElementById("selCount"),
+    btnGenerateRoute: document.getElementById("btnGenerateRoute"),
+    routeList: document.getElementById("routeList"),
+    routeStopCount: document.getElementById("routeStopCount"),
+    emptyRoute: document.getElementById("emptyRoute"),
+    btnClearRoute: document.getElementById("btnClearRoute"),
+    mapsButtons: document.getElementById("mapsButtons"),
+    btnShare: document.getElementById("btnShare"),
+    btnRoutePdf: document.getElementById("btnRoutePdf"),
+    btnAddressesPdf: document.getElementById("btnAddressesPdf"),
+    btnLinksPdf: document.getElementById("btnLinksPdf"),
+    shareStatus: document.getElementById("shareStatus"),
+    routeTotal: document.getElementById("routeTotal"),
+    reporteTotal: document.getElementById("reporteTotal"),
+    btnReporteShare: document.getElementById("btnReporteShare"),
+    btnReportePdf: document.getElementById("btnReportePdf"),
+    generalNotes: document.getElementById("generalNotes"),
+    modalOverlay: document.getElementById("modalOverlay"),
+    modalTitle: document.getElementById("modalTitle"),
+    contactForm: document.getElementById("contactForm"),
+    btnCancel: document.getElementById("btnCancel"),
+    btnCloseModal: document.getElementById("btnCloseModal"),
+    btnSave: document.querySelector("#contactForm button[type=submit]"),
+    f_funeraria: document.getElementById("f_funeraria"),
+    f_contact: document.getElementById("f_contact"),
+    f_phone: document.getElementById("f_phone"),
+    f_address: document.getElementById("f_address"),
+    f_tags: document.getElementById("f_tags"),
+    f_nota: document.getElementById("f_nota"),
+    f_url: document.getElementById("f_url"),
+    shareModalOverlay: document.getElementById("shareModalOverlay"),
+    shareModalTitle: document.getElementById("shareModalTitle"),
+    shareModalText: document.getElementById("shareModalText"),
+    shareModalNativeBtn: document.getElementById("shareModalNativeBtn"),
+    btnCloseShareModal: document.getElementById("btnCloseShareModal"),
+    btnCloseShareModal2: document.getElementById("btnCloseShareModal2"),
+    btnShareModalCopy: document.getElementById("btnShareModalCopy")
+  };
+
+  // ---- Tabs ----
+  el.tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      el.tabs.forEach(function (t) { t.classList.remove("active"); });
+      tab.classList.add("active");
+      var target = tab.getAttribute("data-tab");
+      el.viewContacts.classList.toggle("active", target === "contacts");
+      el.viewRoute.classList.toggle("active", target === "route");
+      if (target === "route") renderRoute();
+    });
+  });
+
+  function goToRouteTab() {
+    el.tabs.forEach(function (t) { t.classList.toggle("active", t.getAttribute("data-tab") === "route"); });
+    el.viewContacts.classList.remove("active");
+    el.viewRoute.classList.add("active");
+    renderRoute();
+  }
+
+  // ---- Contact list rendering ----
+  function matchesSearch(c, q) {
+    if (!q) return true;
+    q = q.toLowerCase().replace(/^#/, "");
+    var hay = [c.funeraria, c.contactName, c.address, c.phone, c.nota, c.url].join(" ").toLowerCase();
+    var tagHay = (c.tags || []).join(" ").toLowerCase();
+    return hay.indexOf(q) !== -1 || tagHay.indexOf(q) !== -1;
+  }
+
+  function renderContacts() {
+    var q = state.search.trim();
+    var filtered = state.contacts.filter(function (c) { return matchesSearch(c, q); });
+
+    el.contactList.innerHTML = "";
+    el.emptyContacts.hidden = state.contacts.length > 0;
+    if (state.contacts.length > 0 && filtered.length === 0) {
+      el.emptyContacts.hidden = false;
+      el.emptyContacts.textContent = "Ningún contacto coincide con tu búsqueda.";
+    } else if (state.contacts.length === 0) {
+      el.emptyContacts.textContent = "Aún no hay contactos. Agrega el primero para comenzar.";
+    }
+
+    filtered.forEach(function (c) {
+      var card = document.createElement("div");
+      card.className = "contact-card";
+      card.setAttribute("data-id", c.id);
+
+      var tagsHtml = (c.tags || []).map(function (t) {
+        return '<span class="tag">#' + escapeHtml(t) + '</span>';
+      }).join("");
+
+      var personLine = [c.contactName, c.phone].filter(Boolean).join(" · ");
+
+      card.innerHTML =
+        '<label class="check"><input type="checkbox" ' + (state.selected.has(c.id) ? "checked" : "") + '></label>' +
+        '<div class="contact-main">' +
+          '<h3>' + escapeHtml(c.funeraria || "(sin nombre)") + '</h3>' +
+          (personLine ? '<p class="contact-person">' + escapeHtml(personLine) + '</p>' : "") +
+          (c.address ? '<p class="contact-address">' + escapeHtml(c.address) + '</p>' : "") +
+          (c.nota ? '<p class="contact-note">' + escapeHtml(c.nota) + '</p>' : "") +
+          (c.url ? '<p class="contact-url"><a href="' + escapeHtml(c.url) + '" target="_blank" rel="noopener">' + escapeHtml(c.url) + '</a></p>' : "") +
+          '<div class="tags">' + tagsHtml + '</div>' +
+        '</div>' +
+        '<div class="contact-actions">' +
+          '<button class="icon-btn edit" aria-label="Editar">&#9998;</button>' +
+          '<button class="icon-btn delete" aria-label="Eliminar">&#128465;</button>' +
+        '</div>';
+
+      card.querySelector("input[type=checkbox]").addEventListener("change", function (e) {
+        if (e.target.checked) state.selected.add(c.id); else state.selected.delete(c.id);
+        renderSelectionBar();
+      });
+      card.querySelector(".edit").addEventListener("click", function () { openModal(c.id); });
+      card.querySelector(".delete").addEventListener("click", function () { deleteContact(c.id); });
+
+      el.contactList.appendChild(card);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+    });
+  }
+
+  function renderSelectionBar() {
+    var n = state.selected.size;
+    el.selectionBar.hidden = n === 0;
+    el.selCount.textContent = n + (n === 1 ? " seleccionado" : " seleccionados");
+  }
+
+  el.search.addEventListener("input", function (e) {
+    state.search = e.target.value;
+    renderContacts();
+  });
+
+  el.btnGenerateRoute.addEventListener("click", function () {
+    if (state.selected.size === 0) return;
+    var newIds = Array.from(state.selected);
+    var existing = state.route.ids.filter(function (id) { return newIds.indexOf(id) === -1; });
+
+    // A new stop's note defaults to that contact's own nota (set once,
+    // here — editing it afterward in the route never gets overwritten).
+    var byContact = Object.assign({}, state.route.notes.byContact);
+    newIds.forEach(function (id) {
+      if (byContact[id]) return;
+      var contact = state.contacts.find(function (c) { return c.id === id; });
+      if (contact && contact.nota && contact.nota.trim()) byContact[id] = contact.nota.trim();
+    });
+
+    writeRouteDoc({
+      ids: existing.concat(newIds),
+      notes: Object.assign({}, state.route.notes, { byContact: byContact })
+    });
+    state.selected.clear();
+    renderSelectionBar();
+    renderContacts();
+    goToRouteTab();
+  });
+
+  // ---- Delete contact ----
+  function deleteContact(id) {
+    if (usingDb && contactsCol) {
+      contactsCol.doc(id).delete().catch(handleWriteError);
+    } else {
+      state.contacts = state.contacts.filter(function (c) { return c.id !== id; });
+      saveContactsLocal(state.contacts);
+      renderContacts();
+    }
+    state.selected.delete(id);
+    renderSelectionBar();
+    if (state.route.ids.indexOf(id) !== -1) {
+      writeRouteDoc({ ids: state.route.ids.filter(function (rid) { return rid !== id; }) });
+    }
+  }
+
+  // ---- Modal (add/edit) ----
+  function openModal(id) {
+    state.editingId = id || null;
+    el.btnSave.disabled = false;
+    if (id) {
+      var c = state.contacts.find(function (x) { return x.id === id; });
+      if (!c) return;
+      el.modalTitle.textContent = "Editar contacto";
+      el.f_funeraria.value = c.funeraria;
+      el.f_contact.value = c.contactName;
+      el.f_phone.value = c.phone || "";
+      el.f_address.value = c.address;
+      el.f_tags.value = (c.tags || []).join(", ");
+      el.f_nota.value = c.nota || "";
+      el.f_url.value = c.url || "";
+    } else {
+      el.modalTitle.textContent = "Nuevo contacto";
+      el.contactForm.reset();
+    }
+    el.modalOverlay.hidden = false;
+    el.f_funeraria.focus();
+  }
+  function closeModal() {
+    el.modalOverlay.hidden = true;
+    state.editingId = null;
+  }
+
+  el.btnAdd.addEventListener("click", function () { openModal(null); });
+
+  function bindCloser(node) {
+    if (!node) return;
+    ["click", "touchend", "pointerup"].forEach(function (type) {
+      node.addEventListener(type, function (e) {
+        e.preventDefault();
+        closeModal();
+      }, { passive: false });
+    });
+  }
+  bindCloser(el.btnCancel);
+  bindCloser(el.btnCloseModal);
+  window.__closeContactModal = closeModal; // fallback hook, see inline onclick on the buttons
+
+  el.modalOverlay.addEventListener("click", function (e) {
+    if (e.target === el.modalOverlay) closeModal();
+  });
+
+  function bindGenericCloser(node, closeFn) {
+    if (!node) return;
+    ["click", "touchend", "pointerup"].forEach(function (type) {
+      node.addEventListener(type, function (e) {
+        e.preventDefault();
+        closeFn();
+      }, { passive: false });
+    });
+  }
+  bindGenericCloser(el.btnCloseShareModal, closeShareModal);
+  bindGenericCloser(el.btnCloseShareModal2, closeShareModal);
+  el.shareModalOverlay.addEventListener("click", function (e) {
+    if (e.target === el.shareModalOverlay) closeShareModal();
+  });
+
+  el.btnShareModalCopy.addEventListener("click", function () {
+    el.shareModalText.focus();
+    el.shareModalText.select();
+    var copied = false;
+    try { copied = document.execCommand && document.execCommand("copy"); } catch (e) { copied = false; }
+    if (copied) { showToast("Copiado al portapapeles"); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(el.shareModalText.value)
+        .then(function () { showToast("Copiado al portapapeles"); })
+        .catch(function () { showToast("Selecciona el texto y cópialo manualmente"); });
+      return;
+    }
+    showToast("Selecciona el texto y cópialo manualmente");
+  });
+
+  el.shareModalNativeBtn.addEventListener("click", function () {
+    if (!navigator.share) return;
+    navigator.share({ title: el.shareModalTitle.textContent, text: el.shareModalText.value }).catch(function () {});
+  });
+
+  el.contactForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (el.btnSave.disabled) return;
+    el.btnSave.disabled = true;
+
+    var tags = el.f_tags.value.split(",")
+      .map(function (t) { return t.trim().replace(/^#/, ""); })
+      .filter(Boolean);
+
+    var data = {
+      funeraria: el.f_funeraria.value.trim(),
+      contactName: el.f_contact.value.trim(),
+      phone: el.f_phone.value.trim(),
+      address: el.f_address.value.trim(),
+      tags: tags,
+      nota: el.f_nota.value.trim(),
+      url: el.f_url.value.trim()
+    };
+
+    var editingId = state.editingId;
+
+    if (usingDb && contactsCol) {
+      var promise = editingId
+        ? contactsCol.doc(editingId).update(data)
+        : contactsCol.add(data);
+      promise.catch(handleWriteError);
+      closeModal();
+    } else {
+      if (editingId) {
+        var c = state.contacts.find(function (x) { return x.id === editingId; });
+        if (c) Object.assign(c, data);
+      } else {
+        data.id = uid();
+        state.contacts.unshift(data);
+      }
+      saveContactsLocal(state.contacts);
+      closeModal();
+      renderContacts();
+      renderRoute();
+    }
+  });
+
+  // ---- Route tab ----
+  var sortableInstance = null;
+
+  function renderRoute() {
+    var stops = state.route.ids
+      .map(function (id) { return state.contacts.find(function (c) { return c.id === id; }); })
+      .filter(Boolean);
+
+    // drop any ids whose contact no longer exists (display only — the
+    // owning action, e.g. deleteContact, is responsible for persisting)
+    var cleanIds = stops.map(function (s) { return s.id; });
+    if (!usingDb && cleanIds.length !== state.route.ids.length) {
+      state.route.ids = cleanIds;
+      saveRouteLocal(state.route);
+    }
+
+    el.routeCountBadge.hidden = stops.length === 0;
+    el.routeCountBadge.textContent = stops.length;
+    el.routeStopCount.textContent = stops.length ? "(" + stops.length + (stops.length === 1 ? " parada)" : " paradas)") : "";
+    el.emptyRoute.hidden = stops.length > 0;
+    renderMapsButtons(stops);
+    el.btnShare.hidden = stops.length === 0;
+    el.btnRoutePdf.hidden = stops.length === 0;
+    el.btnAddressesPdf.hidden = stops.length === 0;
+    el.btnLinksPdf.hidden = stops.length === 0;
+    el.shareStatus.hidden = true;
+    el.btnReporteShare.hidden = stops.length === 0;
+    el.btnReportePdf.hidden = stops.length === 0;
+
+    var routeTotal = 0, receivedTotal = 0;
+    stops.forEach(function (s) {
+      var d = stopDetailOf(s.id);
+      routeTotal += stopSubtotal(d);
+      receivedTotal += costNumber(d.montoEfectivo) + costNumber(d.montoTransferencia);
+    });
+    el.routeTotal.textContent = "$" + routeTotal.toFixed(2);
+    el.reporteTotal.textContent = "$" + Math.max(0, routeTotal - receivedTotal).toFixed(2);
+
+    // Don't tear down the list while someone's mid-keystroke in a
+    // per-stop note/field or mid-drag — a synced write from this or
+    // another viewer can trigger this render at any moment. Only text
+    // inputs count as "busy": a focused button (e.g. just-clicked
+    // "Agregar" or "×") must not block its own re-render.
+    var active = document.activeElement;
+    var typingInList = el.routeList.contains(active) &&
+      (active.tagName === "TEXTAREA" || active.tagName === "INPUT");
+    var listBusy = typingInList ||
+      (sortableInstance && el.routeList.classList.contains("sortable-dragging"));
+
+    if (!listBusy) {
+      el.routeList.innerHTML = "";
+      stops.forEach(function (c, i) {
+        var li = document.createElement("li");
+        li.className = "route-item";
+        li.setAttribute("data-id", c.id);
+        var detail = stopDetailOf(c.id);
+
+        function itemRowHtml(item, idx) {
+          var qty = item.cantidad || 10;
+          var subtotal = costNumber(item.costo) * qty;
+          return '' +
+            '<div class="item-row" data-idx="' + idx + '">' +
+              '<div class="item-row-head">' +
+                '<span class="item-row-label">Artículo ' + (idx + 1) + '</span>' +
+                '<button type="button" class="icon-btn remove-item" aria-label="Quitar artículo">&times;</button>' +
+              '</div>' +
+              '<div class="field-row">' +
+                '<span class="field-label">Cantidad</span>' +
+                '<div class="stepper">' +
+                  '<button type="button" class="stepper-btn" data-action="dec" aria-label="Restar 10">&minus;</button>' +
+                  '<span class="stepper-value">' + qty + '</span>' +
+                  '<button type="button" class="stepper-btn" data-action="inc" aria-label="Sumar 10">+</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="field-row">' +
+                '<span class="field-label">Tamaño</span>' +
+                '<div class="item-seg-group" data-field="tamano">' +
+                  [30, 40, 50].map(function (sz) {
+                    return '<button type="button" class="seg-btn' + (item.tamano === sz ? " active" : "") + '" data-value="' + sz + '">' + sz + ' cm</button>';
+                  }).join("") +
+                '</div>' +
+              '</div>' +
+              '<div class="field-row">' +
+                '<span class="field-label">Acabado</span>' +
+                '<div class="item-seg-group" data-field="tipo">' +
+                  ["Personalizado", "Liso"].map(function (t) {
+                    return '<button type="button" class="seg-btn' + (item.tipo === t ? " active" : "") + '" data-value="' + t + '">' + t + '</button>';
+                  }).join("") +
+                '</div>' +
+              '</div>' +
+              '<div class="field-row">' +
+                '<span class="field-label">Costo unitario</span>' +
+                '<div class="cost-input-wrap"><span class="cost-prefix">$</span><input type="text" inputmode="decimal" class="item-cost-input" placeholder="0.00" value="' + escapeHtml(item.costo || "") + '"></div>' +
+              '</div>' +
+              '<div class="item-subtotal-row"><span class="field-label">Subtotal (cantidad × costo)</span><span class="item-subtotal-value">$' + subtotal.toFixed(2) + '</span></div>' +
+            '</div>';
+        }
+
+        li.innerHTML =
+          '<div class="route-item-row">' +
+            '<span class="drag-handle">&#10077;&#10077;</span>' +
+            '<span class="stop-number">' + (i + 1) + '</span>' +
+            '<div class="stop-info"><strong>' + escapeHtml(c.funeraria) + '</strong><span>' + escapeHtml(c.address) + '</span></div>' +
+            '<button class="icon-btn remove" aria-label="Quitar de la ruta">&times;</button>' +
+          '</div>' +
+          '<textarea class="stop-note-input" placeholder="Nota para esta parada: horario, instrucciones, qué entregar..."></textarea>' +
+          '<div class="stop-extra">' +
+            '<div class="items-block">' + detail.items.map(itemRowHtml).join("") + '</div>' +
+            '<button type="button" class="btn-chip add-item">+ Agregar cantidad y tamaño</button>' +
+            (detail.items.length
+              ? '<div class="stop-subtotal-row"><span class="field-label">Subtotal de la parada</span><span class="stop-subtotal-value">$' + stopSubtotal(detail).toFixed(2) + '</span></div>'
+              : '') +
+            '<div class="field-row">' +
+              '<span class="field-label">Forma de pago</span>' +
+              '<div class="seg-group" data-field="formaPago">' +
+                ["Efectivo", "Transferencia", "Ambos"].map(function (opt) {
+                  return '<button type="button" class="seg-btn' + (detail.formaPago === opt ? " active" : "") + '" data-value="' + opt + '">' + opt + '</button>';
+                }).join("") +
+              '</div>' +
+            '</div>' +
+            '<div class="field-row">' +
+              '<span class="field-label">Efectivo recibido</span>' +
+              '<div class="cost-input-wrap"><span class="cost-prefix">$</span><input type="text" inputmode="decimal" class="monto-efectivo-input" placeholder="0.00" value="' + escapeHtml(detail.montoEfectivo) + '"></div>' +
+            '</div>' +
+            '<div class="field-row">' +
+              '<span class="field-label">Transferencia recibida</span>' +
+              '<div class="cost-input-wrap"><span class="cost-prefix">$</span><input type="text" inputmode="decimal" class="monto-transferencia-input" placeholder="0.00" value="' + escapeHtml(detail.montoTransferencia) + '"></div>' +
+            '</div>' +
+          '</div>';
+
+        li.querySelector(".remove").addEventListener("click", function () {
+          writeRouteDoc({ ids: state.route.ids.filter(function (id) { return id !== c.id; }) });
+        });
+
+        var noteInput = li.querySelector(".stop-note-input");
+        noteInput.value = state.route.notes.byContact[c.id] || "";
+        noteInput.addEventListener("input", function () {
+          clearTimeout(noteInput._t);
+          var val = noteInput.value;
+          noteInput._t = setTimeout(function () { setContactNote(c.id, val); }, 400);
+        });
+
+        li.querySelectorAll(".item-row").forEach(function (row) {
+          var idx = Number(row.getAttribute("data-idx"));
+          var valueEl = row.querySelector(".stepper-value");
+
+          row.querySelectorAll(".stepper-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var items = stopDetailOf(c.id).items;
+              var cur = (items[idx] && items[idx].cantidad) || 10;
+              var action = btn.getAttribute("data-action");
+              var next = action === "inc" ? Math.min(200, cur + 10) : Math.max(10, cur - 10);
+              valueEl.textContent = next;
+              setStopItem(c.id, idx, { cantidad: next });
+            });
+          });
+
+          row.querySelectorAll(".item-seg-group").forEach(function (group) {
+            var field = group.getAttribute("data-field");
+            group.querySelectorAll(".seg-btn").forEach(function (btn) {
+              btn.addEventListener("click", function () {
+                group.querySelectorAll(".seg-btn").forEach(function (b) { b.classList.remove("active"); });
+                btn.classList.add("active");
+                var value = btn.getAttribute("data-value");
+                var patch = {};
+                patch[field] = field === "tamano" ? Number(value) : value;
+                setStopItem(c.id, idx, patch);
+              });
+            });
+          });
+
+          var itemCostInput = row.querySelector(".item-cost-input");
+          itemCostInput.addEventListener("input", function () {
+            clearTimeout(itemCostInput._t);
+            var val = itemCostInput.value;
+            itemCostInput._t = setTimeout(function () { setStopItem(c.id, idx, { costo: val }); }, 400);
+          });
+
+          row.querySelector(".remove-item").addEventListener("click", function () {
+            removeStopItem(c.id, idx);
+          });
+        });
+
+        li.querySelector(".add-item").addEventListener("click", function () {
+          addStopItem(c.id);
+        });
+
+        li.querySelectorAll(".seg-group").forEach(function (group) {
+          var field = group.getAttribute("data-field");
+          group.querySelectorAll(".seg-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              group.querySelectorAll(".seg-btn").forEach(function (b) { b.classList.remove("active"); });
+              btn.classList.add("active");
+              var value = btn.getAttribute("data-value");
+              setStopDetail(c.id, { formaPago: value });
+            });
+          });
+        });
+
+        var efectivoInput = li.querySelector(".monto-efectivo-input");
+        efectivoInput.addEventListener("input", function () {
+          clearTimeout(efectivoInput._t);
+          var val = efectivoInput.value;
+          efectivoInput._t = setTimeout(function () { setStopDetail(c.id, { montoEfectivo: val }); }, 400);
+        });
+
+        var transferInput = li.querySelector(".monto-transferencia-input");
+        transferInput.addEventListener("input", function () {
+          clearTimeout(transferInput._t);
+          var val = transferInput.value;
+          transferInput._t = setTimeout(function () { setStopDetail(c.id, { montoTransferencia: val }); }, 400);
+        });
+
+        el.routeList.appendChild(li);
+      });
+
+      if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
+      if (stops.length > 1 && window.Sortable) {
+        sortableInstance = new Sortable(el.routeList, {
+          handle: ".drag-handle",
+          animation: 150,
+          onEnd: function () {
+            var newOrder = Array.from(el.routeList.children).map(function (li) { return li.getAttribute("data-id"); });
+            Array.from(el.routeList.children).forEach(function (li, i) {
+              li.querySelector(".stop-number").textContent = i + 1;
+            });
+            writeRouteDoc({ ids: newOrder });
+          }
+        });
+      }
+    }
+
+    if (document.activeElement !== el.generalNotes) {
+      el.generalNotes.value = state.route.notes.general || "";
+    }
+  }
+
+  el.btnClearRoute.addEventListener("click", function () {
+    writeRouteDoc({ ids: [] });
+  });
+
+  function currentStops() {
+    return state.route.ids
+      .map(function (id) { return state.contacts.find(function (c) { return c.id === id; }); })
+      .filter(Boolean);
+  }
+
+  // Google's own docs: "up to three waypoints supported on mobile
+  // browsers, and a maximum of nine waypoints supported otherwise."
+  // Since this app is opened on phones, we size legs for the stricter
+  // mobile-browser limit: 3 waypoints + 1 destination = 4 stops.
+  // Google's own docs: "up to three waypoints supported on mobile
+  // browsers, and a maximum of nine waypoints supported otherwise."
+  // This stays at 4 (3 waypoints + 1 destination) because that's the
+  // limit that's actually reliable on a phone — a higher number is
+  // what caused stops to silently vanish before.
+  var MAPS_CHUNK_SIZE = 4;
+
+  // Groups stops by their first tag (treated as the municipio), in
+  // the order each tag first appears. Untagged stops land in their
+  // own "Sin municipio" group rather than mixing with a tagged one.
+  function groupStopsByMunicipio(stops) {
+    var groups = [];
+    var byKey = {};
+    stops.forEach(function (s) {
+      var key = (s.tags && s.tags.length) ? s.tags[0] : "\u0000sin-municipio";
+      if (!byKey[key]) {
+        byKey[key] = { label: key === "\u0000sin-municipio" ? "Sin municipio" : ("#" + key), stops: [] };
+        groups.push(byKey[key]);
+      }
+      byKey[key].stops.push(s);
+    });
+    return groups;
+  }
+
+  // One leg per group of up to MAPS_CHUNK_SIZE stops — grouped by
+  // municipio first, so a leg never mixes stops from two municipios;
+  // a municipio with more stops than the cap just gets more legs of
+  // its own, never borrowing room from another municipio's group.
+  function buildMapsLegs(stops) {
+    var legs = [];
+    groupStopsByMunicipio(stops).forEach(function (group) {
+      var legCount = Math.ceil(group.stops.length / MAPS_CHUNK_SIZE);
+      for (var i = 0; i < group.stops.length; i += MAPS_CHUNK_SIZE) {
+        var chunk = group.stops.slice(i, i + MAPS_CHUNK_SIZE);
+        var destination = encodeURIComponent(chunk[chunk.length - 1].address);
+        var waypointAddrs = chunk.slice(0, -1).map(function (s) { return encodeURIComponent(s.address); });
+        var url = "https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=" + destination;
+        if (waypointAddrs.length) url += "&waypoints=" + waypointAddrs.join("%7C");
+        var legNum = Math.floor(i / MAPS_CHUNK_SIZE) + 1;
+        legs.push({
+          label: group.label + (legCount > 1 ? " — tramo " + legNum + "/" + legCount : "") + " (" + chunk.length + (chunk.length === 1 ? " parada)" : " paradas)"),
+          url: url
+        });
+      }
+    });
+    return legs;
+  }
+
+  function renderMapsButtons(stops) {
+    var legs = buildMapsLegs(stops);
+    el.mapsButtons.innerHTML = "";
+    legs.forEach(function (leg) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-secondary";
+      btn.textContent = legs.length > 1 ? "Abrir Maps — " + leg.label : "Abrir ruta en Google Maps";
+      btn.addEventListener("click", function () { window.open(leg.url, "_blank", "noopener"); });
+      el.mapsButtons.appendChild(btn);
+    });
+  }
+
+  function routeShareText(stops) {
+    var lines = ["Ruta de entrega (" + stops.length + (stops.length === 1 ? " parada)" : " paradas)")];
+    stops.forEach(function (s, i) {
+      lines.push((i + 1) + ". " + s.funeraria + " — " + s.address + (s.phone ? " — " + s.phone : ""));
+      var d = stopDetailOf(s.id);
+      d.items.forEach(function (item) {
+        var parts = [];
+        if (item.cantidad) parts.push("cantidad " + item.cantidad);
+        if (item.tamano) parts.push(item.tamano + " cm");
+        if (item.tipo) parts.push(item.tipo.toLowerCase());
+        if (item.costo) parts.push("$" + costNumber(item.costo).toFixed(2) + " c/u (" + itemSubtotal(item).toFixed(2) + ")");
+        if (parts.length) lines.push("   " + parts.join(" · "));
+      });
+      if (d.items.length) lines.push("   Subtotal: $" + stopSubtotal(d).toFixed(2));
+      var note = state.route.notes.byContact[s.id];
+      if (note && note.trim()) lines.push("   Nota: " + note.trim());
+    });
+    lines.push("");
+    var legs = buildMapsLegs(stops);
+    legs.forEach(function (leg) {
+      lines.push((legs.length > 1 ? "Mapa — " + leg.label + ": " : "Mapa: ") + leg.url);
+    });
+    if (state.route.notes.general && state.route.notes.general.trim()) {
+      lines.push("");
+      lines.push("Notas generales: " + state.route.notes.general.trim());
+    }
+    return lines.join("\n");
+  }
+
+  // navigator.share / navigator.clipboard are unreliable inside an
+  // embedded viewer (permissions policy can silently block them), so
+  // the guaranteed path is: show the text, selected, in a modal the
+  // person can always copy from by hand — plus a best-effort one-tap
+  // copy button and, only if present, a native share button on top.
+  function openShareModal(text, title) {
+    el.shareModalTitle.textContent = title || "Compartir";
+    el.shareModalText.value = text;
+    el.shareModalNativeBtn.hidden = !navigator.share;
+    el.shareModalOverlay.hidden = false;
+    el.shareModalText.focus();
+    el.shareModalText.select();
+  }
+  function closeShareModal() { el.shareModalOverlay.hidden = true; }
+
+  function shareOrCopyText(text, title) {
+    openShareModal(text, title);
+  }
+
+  el.btnShare.addEventListener("click", function () {
+    var stops = currentStops();
+    if (stops.length === 0) return;
+    shareOrCopyText(routeShareText(stops), "Ruta de entrega");
+  });
+
+  // ---- Cobro (payment requests) ----
+  function costNumber(costo) {
+    var n = parseFloat(String(costo || "").replace(/[^0-9.-]/g, ""));
+    return isNaN(n) ? 0 : n;
+  }
+  // Formats a stop's items as short strings, e.g. "10 · Personalizado",
+  // "50 · 30 cm · Liso" — skips items with nothing set.
+  function itemLines(items) {
+    return (items || [])
+      .filter(function (it) { return it.cantidad || it.tamano || it.tipo; })
+      .map(function (it) {
+        var parts = [];
+        if (it.cantidad) parts.push(it.cantidad);
+        if (it.tamano) parts.push(it.tamano + " cm");
+        if (it.tipo) parts.push(it.tipo);
+        return parts.join(" · ");
+      });
+  }
+  function slugify(s) {
+    return String(s || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "contacto";
+  }
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function getJsPDF() {
+    return window.jspdf && window.jspdf.jsPDF;
+  }
+
+  function buildFullRoutePdfBlob(stops) {
+    var Ctor = getJsPDF();
+    if (!Ctor) return null;
+    var doc = new Ctor({ unit: "pt", format: "a4" });
+    var y = 60;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+    doc.text("Ruta de entrega", 40, y); y += 20;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text("Fecha: " + new Date().toLocaleDateString("es-MX") + " — " + stops.length + (stops.length === 1 ? " parada" : " paradas"), 40, y); y += 28;
+
+    stops.forEach(function (s, i) {
+      var d = stopDetailOf(s.id);
+      var note = state.route.notes.byContact[s.id];
+      if (y > 700) { doc.addPage(); y = 60; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text((i + 1) + ". " + s.funeraria, 40, y); y += 16;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+      if (s.contactName) { doc.text("Contacto: " + s.contactName + (s.phone ? " — " + s.phone : ""), 50, y); y += 14; }
+      doc.text("Dirección: " + s.address, 50, y); y += 14;
+      d.items.forEach(function (item) {
+        var specs = [];
+        if (item.cantidad) specs.push("Cantidad " + item.cantidad);
+        if (item.tamano) specs.push(item.tamano + " cm");
+        if (item.tipo) specs.push(item.tipo);
+        if (item.costo) specs.push("$" + costNumber(item.costo).toFixed(2) + " c/u = $" + itemSubtotal(item).toFixed(2));
+        if (specs.length) { doc.text("• " + specs.join(" · "), 50, y); y += 14; }
+      });
+      if (d.items.length) { doc.text("Subtotal parada: $" + stopSubtotal(d).toFixed(2), 50, y); y += 14; }
+      if (note && note.trim()) {
+        var noteLines = doc.splitTextToSize("Nota: " + note.trim(), 480);
+        doc.text(noteLines, 50, y); y += 14 * noteLines.length;
+      }
+      y += 10;
+    });
+
+    if (state.route.notes.general && state.route.notes.general.trim()) {
+      if (y > 700) { doc.addPage(); y = 60; }
+      doc.setDrawColor(200); doc.line(40, y, 555, y); y += 20;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+      doc.text("Notas generales", 40, y); y += 16;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+      var genLines = doc.splitTextToSize(state.route.notes.general.trim(), 515);
+      doc.text(genLines, 40, y);
+    }
+    return doc.output("blob");
+  }
+
+  el.btnRoutePdf.addEventListener("click", function () {
+    var stops = currentStops();
+    if (stops.length === 0) return;
+    var blob = buildFullRoutePdfBlob(stops);
+    if (!blob) { showToast("No se pudo generar el PDF en este navegador."); return; }
+    downloadBlob("ruta-" + todayStr() + ".pdf", blob);
+  });
+
+  // One destination per link (no waypoints), so each one is immune to
+  // the mobile waypoint limit — opens that single address directly.
+  function singleAddressMapsUrl(address) {
+    return "https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=" + encodeURIComponent(address || "");
+  }
+
+  function buildAddressLinksPdfBlob(stops) {
+    var Ctor = getJsPDF();
+    if (!Ctor) return null;
+    var doc = new Ctor({ unit: "pt", format: "a4" });
+    var y = 60;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+    doc.text("Direcciones y enlaces de la ruta", 40, y); y += 20;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text("Fecha: " + new Date().toLocaleDateString("es-MX") + " — " + stops.length + (stops.length === 1 ? " parada" : " paradas"), 40, y); y += 26;
+
+    stops.forEach(function (s, i) {
+      if (y > 730) { doc.addPage(); y = 60; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+      doc.text((i + 1) + ". " + (s.funeraria || "(sin nombre)"), 40, y); y += 15;
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(0, 0, 0);
+      var addrLines = doc.splitTextToSize(s.address || "(sin dirección)", 515);
+      doc.text(addrLines, 40, y); y += 13 * addrLines.length + 3;
+
+      var url = singleAddressMapsUrl(s.address);
+      doc.setTextColor(50, 90, 160);
+      doc.textWithLink("Abrir en Google Maps", 40, y, { url: url });
+      doc.setTextColor(0, 0, 0);
+      y += 13;
+
+      doc.setFontSize(7.5); doc.setTextColor(140, 140, 140);
+      var urlLines = doc.splitTextToSize(url, 515);
+      doc.text(urlLines, 40, y); y += 10 * urlLines.length;
+      doc.setTextColor(0, 0, 0); doc.setFontSize(9.5);
+      y += 16;
+    });
+
+    return doc.output("blob");
+  }
+
+  el.btnAddressesPdf.addEventListener("click", function () {
+    var stops = currentStops();
+    if (stops.length === 0) return;
+    var blob = buildAddressLinksPdfBlob(stops);
+    if (!blob) { showToast("No se pudo generar el PDF en este navegador."); return; }
+    downloadBlob("direcciones-links-" + todayStr() + ".pdf", blob);
+  });
+
+  // ---- Reporte al jefe (paid status per stop) ----
+  function formaPagoLabel(d) {
+    if (d.formaPago) return d.formaPago;
+    if (costNumber(d.montoEfectivo) && costNumber(d.montoTransferencia)) return "Ambos";
+    if (costNumber(d.montoTransferencia)) return "Transferencia";
+    if (costNumber(d.montoEfectivo)) return "Efectivo";
+    return "Sin registrar";
+  }
+
+  function buildBossReportText(stops) {
+    var lines = ["Reporte de entregas — " + new Date().toLocaleDateString("es-MX")];
+    var routeTotal = 0, receivedTotal = 0;
+    stops.forEach(function (s, i) {
+      var d = stopDetailOf(s.id);
+      var subtotal = stopSubtotal(d);
+      var efectivo = costNumber(d.montoEfectivo);
+      var transferencia = costNumber(d.montoTransferencia);
+      routeTotal += subtotal;
+      receivedTotal += efectivo + transferencia;
+      lines.push((i + 1) + ". " + s.funeraria + " — total $" + subtotal.toFixed(2) + " — " + formaPagoLabel(d) +
+        (efectivo ? " — efectivo $" + efectivo.toFixed(2) : "") +
+        (transferencia ? " — transferencia $" + transferencia.toFixed(2) : ""));
+    });
+    lines.push("");
+    lines.push("Total de la ruta: $" + routeTotal.toFixed(2));
+    lines.push("Total recibido: $" + receivedTotal.toFixed(2));
+    lines.push("Pendiente de entregar: $" + Math.max(0, routeTotal - receivedTotal).toFixed(2));
+    return lines.join("\n");
+  }
+
+  function buildBossReportPdfBlob(stops) {
+    var Ctor = getJsPDF();
+    if (!Ctor) return null;
+    var doc = new Ctor({ unit: "pt", format: "a4" });
+    var y = 60;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+    doc.text("Reporte de entregas", 40, y); y += 20;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text("Fecha: " + new Date().toLocaleDateString("es-MX"), 40, y); y += 28;
+
+    var routeTotal = 0, receivedTotal = 0;
+    stops.forEach(function (s, i) {
+      var d = stopDetailOf(s.id);
+      var subtotal = stopSubtotal(d);
+      var efectivo = costNumber(d.montoEfectivo);
+      var transferencia = costNumber(d.montoTransferencia);
+      routeTotal += subtotal;
+      receivedTotal += efectivo + transferencia;
+      if (y > 750) { doc.addPage(); y = 60; }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+      doc.text((i + 1) + ". " + s.funeraria, 40, y); y += 15;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+      doc.text("Total: $" + subtotal.toFixed(2) + "   Forma de pago: " + formaPagoLabel(d), 50, y); y += 14;
+      doc.text("Efectivo: $" + efectivo.toFixed(2) + "   Transferencia: $" + transferencia.toFixed(2), 50, y); y += 20;
+    });
+
+    y += 10;
+    doc.setDrawColor(180); doc.line(40, y, 555, y); y += 22;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    doc.text("Total de la ruta: $" + routeTotal.toFixed(2), 40, y); y += 16;
+    doc.text("Total recibido: $" + receivedTotal.toFixed(2), 40, y); y += 20;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+    doc.text("Pendiente de entregar: $" + Math.max(0, routeTotal - receivedTotal).toFixed(2), 40, y);
+    return doc.output("blob");
+  }
+
+  el.btnReporteShare.addEventListener("click", function () {
+    var stops = currentStops();
+    if (stops.length === 0) return;
+    shareOrCopyText(buildBossReportText(stops), "Reporte de entregas");
+  });
+
+  el.btnReportePdf.addEventListener("click", function () {
+    var stops = currentStops();
+    if (stops.length === 0) return;
+    var blob = buildBossReportPdfBlob(stops);
+    if (!blob) { showToast("No se pudo generar el PDF en este navegador."); return; }
+    downloadBlob("reporte-" + todayStr() + ".pdf", blob);
+  });
+
+  function downloadBlob(filename, blob) {
+    try {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      showToast("PDF descargado");
+    } catch (e) {
+      console.error(e);
+      showToast("No se pudo descargar el PDF.");
+    }
+  }
+
+  var notesTimer = null;
+  el.generalNotes.addEventListener("input", function () {
+    clearTimeout(notesTimer);
+    var value = el.generalNotes.value;
+    notesTimer = setTimeout(function () { setGeneralNote(value); }, 400);
+  });
+
+  // ---- Init ----
+  renderContacts();
+  renderSelectionBar();
+  renderRoute();
+  initStore();
+})();
+</script>
+</body>
+</html>
